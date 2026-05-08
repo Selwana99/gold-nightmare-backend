@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}السجل · Gold Nightmare Personal{% endblock %}
+
+{% block content %}
+<div class="container" style="padding:32px 20px;max-width:1100px;margin:0 auto;">
+  <div class="text-center mb-5">
+    <h1 class="display-font text-gradient-gold" style="font-size:32px;">📋 سجل التحاليل</h1>
+    <div class="ornament"></div>
+  </div>
+
+  <div id="list-container"></div>
+  <div id="pagination" class="flex justify-center items-center gap-2 mt-4"></div>
+</div>
+
+<!-- Detail modal -->
+<div id="detail-modal" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;overflow-y:auto;">
+  <div style="max-width:1000px;margin:40px auto;padding:0 20px;">
+    <button class="btn-ghost" data-close-modal style="position:sticky;top:20px;float:inline-end;background:rgba(0,0,0,0.7);">✕ إغلاق</button>
+    <div class="card-elevated p-5" style="margin-top:20px;">
+      <div id="detail-body"><div class="spin"></div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/history.js"></script>
+{% endblock %}

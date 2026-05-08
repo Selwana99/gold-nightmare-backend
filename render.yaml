@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: gold-nightmare-personal
+    env: python
+    region: frankfurt
+    plan: starter  # NOTE: heavy ML stack needs at least 'standard' plan
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PERSONAL_PASSCODE
+        sync: false  # set manually in dashboard
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gn-personal-db
+          property: connectionString
+
+databases:
+  - name: gn-personal-db
+    plan: starter
+    region: frankfurt

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}التدريب · Gold Nightmare Personal{% endblock %}
+
+{% block content %}
+<div class="container" style="padding:32px 20px;max-width:1100px;margin:0 auto;">
+  <div class="text-center mb-6">
+    <p class="text-muted" style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;">Training System · Performance Tracker</p>
+    <h1 class="display-font text-gradient-gold" style="font-size:36px;">🧠 نظام التدريب</h1>
+    <div class="ornament"></div>
+    <p class="muted">تتبع outcomes تلقائياً، few-shot retrieval، وML classifier</p>
+  </div>
+
+  <div class="flex gap-2 mb-5 flex-wrap" style="border-bottom:1px solid var(--border-subtle);padding-bottom:8px;">
+    <button class="btn-ghost active" data-tab="overview">📊 نظرة عامة</button>
+    <button class="btn-ghost" data-tab="outcomes">🎯 Outcomes</button>
+    <button class="btn-ghost" data-tab="fewshot">⚡ Few-shot</button>
+    <button class="btn-ghost" data-tab="classifier">🤖 ML</button>
+    <button class="btn-ghost" data-tab="backtest">🔬 Backtest</button>
+    <button class="btn-ghost" data-tab="export">💾 تصدير</button>
+  </div>
+
+  <div data-tab-content="overview">
+    <div class="stat-grid" id="training-stats"></div>
+    <div class="card p-6 mt-4">
+      <h3 class="display-font gold mb-3" style="font-size:18px;">⚡ Few-shot Learning</h3>
+      <p class="muted" style="font-size:13px;">عند تشغيل تحليل جديد، النظام بيدور على أفضل تحاليل سابقة وبيحقنها كأمثلة في الـ prompt.</p>
+    </div>
+    <div class="card p-6 mt-3">
+      <h3 class="display-font gold mb-3" style="font-size:18px;">🎯 Outcome Tracking</h3>
+      <p class="muted" style="font-size:13px;">كل 5 دقائق النظام بيفحص سعر XAUUSD ويحدد لكل setup: TP/SL/expired.</p>
+      <button class="btn-gold mt-3" id="trigger-outcomes">🔄 فحص يدوي الآن</button>
+      <p id="outcomes-result" class="mt-3 muted" style="font-size:13px;"></p>
+    </div>
+  </div>
+
+  <div data-tab-content="outcomes" style="display:none;">
+    <div class="card p-4 mb-4">
+      <h3 class="display-font gold mb-3" style="font-size:18px;">📊 توزيع النتائج</h3>
+      <div id="outcomes-distribution"></div>
+    </div>
+  </div>
+
+  <div data-tab-content="fewshot" style="display:none;">
+    <div class="card p-4 mb-4">
+      <p class="muted">قاعدة الأمثلة المختارة. النظام بيرقي تلقائياً أي تحليل حقق R:R ≥ 1.5.</p>
+    </div>
+    <div class="card p-0 table-wrap" id="fewshot-table" style="border-radius:var(--r-lg);"></div>
+  </div>
+
+  <div data-tab-content="classifier" style="display:none;">
+    <div class="card-elevated p-6 mb-4">
+      <h3 class="display-font gold mb-3" style="font-size:22px;">🤖 ML Pattern Classifier</h3>
+      <p class="muted mb-3" style="font-size:13px;">XGBoost على outcomes تاريخية. يحسب probability score لكل setup جديد.</p>
+      <div id="classifier-info" class="mb-3"></div>
+      <button class="btn-gold" id="train-classifier-btn">⚡ تدريب على البيانات الحالية</button>
+      <p id="train-result" class="mt-3" style="font-size:13px;"></p>
+    </div>
+  </div>
+
+  <div data-tab-content="backtest" style="display:none;">
+    <div class="card-elevated p-6 mb-4">
+      <h3 class="display-font gold mb-3" style="font-size:22px;">🔬 تشغيل Backtest</h3>
+      <p class="muted mb-3" style="font-size:12px;">يحتاج TWELVEDATA_KEY في .env</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+        <div><label class="input-label">الاسم</label>
+          <input type="text" id="bt-name" class="input" value="XAUUSD H1"></div>
+        <div><label class="input-label">Symbol</label>
+          <input type="text" id="bt-symbol" class="input" value="XAUUSD"></div>
+        <div><label class="input-label">Timeframe</label>
+          <select id="bt-tf" class="input">
+            <option>H1</option><option>H4</option><option>D1</option><option>M15</option>
+          </select></div>
+        <div><label class="input-label">من</label>
+          <input type="datetime-local" id="bt-start" class="input"></div>
+        <div><label class="input-label">إلى</label>
+          <input type="datetime-local" id="bt-end" class="input"></div>
+        <div><label class="input-label">العينات</label>
+          <input type="number" id="bt-samples" class="input" value="20" min="1" max="100"></div>
+      </div>
+      <button class="btn-gold mt-3" id="bt-start-btn">🚀 بدء Backtest</button>
+    </div>
+    <h3 class="display-font gold mb-3" style="font-size:18px;">السجل</h3>
+    <div class="card p-0 table-wrap" id="backtest-table" style="border-radius:var(--r-lg);"></div>
+  </div>
+
+  <div data-tab-content="export" style="display:none;">
+    <div class="card-elevated p-6 mb-4">
+      <h3 class="display-font gold mb-3" style="font-size:22px;">💾 تصدير Datasets</h3>
+      <p class="muted mb-3" style="font-size:13px;">JSONL/CSV جاهزة للـ fine-tuning أو التحليل.</p>
+      <div class="flex gap-2 flex-wrap mb-4">
+        <button class="btn-gold" id="export-quality">⭐ Quality Examples</button>
+        <button class="btn-outline" id="export-training">📚 Training Pairs</button>
+      </div>
+      <p id="export-result" class="muted" style="font-size:13px;"></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/training.js"></script>
+{% endblock %}

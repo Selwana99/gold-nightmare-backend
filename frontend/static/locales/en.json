@@ -1,0 +1,32 @@
+{
+  "nav": {
+    "analyzer": "Analyzer",
+    "history": "History",
+    "admin": "Admin",
+    "login": "Sign In"
+  },
+  "menu": {
+    "my_analyses": "📊 My Analyses",
+    "redeem": "🎁 Redeem Code",
+    "admin": "⚙️ Admin Panel",
+    "logout": "🚪 Sign Out"
+  },
+  "redeem": {
+    "title": "🎁 Redeem Code",
+    "desc": "Enter the code you received from Gold Nightmare channel",
+    "submit": "Redeem"
+  },
+  "analyzer": {
+    "drop_title": "Drop chart images here",
+    "drop_desc_prefix": "or click to select · up to",
+    "drop_desc_suffix": "images for MTF analysis",
+    "context_label": "Additional context (optional)",
+    "analyze_btn": "⚡ Start Institutional Analysis",
+    "analyzing": "Analyzing...",
+    "analyzing_sub": "Reading market structure · Identifying institutional levels · Calculating R:R"
+  },
+  "footer": {
+    "disclaimer": "⚠️ This platform is for educational purposes only. Trading carries high risk. Past performance does not guarantee future results."
+  },
+  "nav_training": "🧠 Training"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Gold Nightmare Vision",
+  "short_name": "GN Vision",
+  "description": "منصة تحليل XAUUSD المؤسسية بالذكاء الاصطناعي",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "lang": "ar",
+  "dir": "rtl",
+  "scope": "/",
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "categories": ["finance", "education", "productivity"]
+}

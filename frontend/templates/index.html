@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}تحليل · Gold Nightmare Personal{% endblock %}
+
+{% block content %}
+<div class="container" style="padding:32px 20px;max-width:1100px;margin:0 auto;">
+  <div class="text-center mb-6">
+    <p class="text-muted" style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;">XAUUSD Chart Analyzer · ICT/SMC · Personal</p>
+    <h1 class="display-font text-gradient-gold" style="font-size:42px;">🎯 تحليل الذهب</h1>
+    <div class="ornament"></div>
+  </div>
+
+  <div class="card-elevated p-5" style="border-radius:var(--r-xl);">
+    <div id="drop-area" class="drop-zone" style="
+      border:2px dashed var(--gold);border-radius:var(--r-lg);
+      padding:48px 20px;text-align:center;cursor:pointer;
+      transition:background 0.2s;background:var(--bg-elevated);">
+      <div style="font-size:48px;margin-bottom:8px;">📊</div>
+      <p style="font-size:18px;margin-bottom:8px;">اسحب صورة الشارت هنا أو انقر للاختيار</p>
+      <p class="muted" style="font-size:13px;">يدعم PNG, JPG, WebP · حتى 4 صور (لتحليل MTF)</p>
+      <p class="muted" style="font-size:12px;margin-top:6px;">💡 يمكن أيضاً نسخ-لصق مباشرة (Ctrl+V)</p>
+      <input type="file" id="file-input" multiple accept="image/*" style="display:none;">
+    </div>
+
+    <div id="file-list" class="flex gap-2 mt-3 flex-wrap"></div>
+
+    <div class="mt-4">
+      <label class="input-label" for="extra-context">ملاحظات إضافية (اختياري)</label>
+      <textarea id="extra-context" class="input" rows="2"
+        placeholder="مثال: ركّز على H1 bias، أو علّل أي confluence مع NFP..."
+        style="resize:vertical;width:100%;font-family:inherit;"></textarea>
+    </div>
+
+    <div class="text-center mt-4">
+      <button id="analyze-btn" class="btn-gold" style="font-size:16px;padding:14px 36px;">
+        🚀 تحليل الشارت
+      </button>
+    </div>
+  </div>
+
+  <div id="result" class="mt-5"></div>
+</div>
+
+<style>
+.drop-zone.drag { background: rgba(212,175,55,0.1); border-style: solid; }
+.file-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle); border-radius: 20px;
+  font-size: 13px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/analyzer.js"></script>
+{% endblock %}

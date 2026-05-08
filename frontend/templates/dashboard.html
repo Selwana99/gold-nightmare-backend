@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}الإحصائيات · Gold Nightmare Personal{% endblock %}
+
+{% block content %}
+<div class="container" style="padding:32px 20px;max-width:1100px;margin:0 auto;">
+  <div class="text-center mb-6">
+    <p class="text-muted" style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;">Owner Dashboard</p>
+    <h1 class="display-font text-gradient-gold" style="font-size:36px;">📊 الإحصائيات</h1>
+    <div class="ornament"></div>
+  </div>
+
+  <div id="dashboard-stats">
+    <div class="text-center" style="padding:60px;"><div class="spin"></div></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

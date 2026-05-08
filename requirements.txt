@@ -1,0 +1,75 @@
+﻿# 
+#  Gold Nightmare PERSONAL Â· Production Requirements
+#  Heavy ML stack â€” install will take time. Optional libs use try/except.
+# 
+
+# â”€â”€â”€ Core framework â”€â”€â”€
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.18
+
+# â”€â”€â”€ Templates & validation â”€â”€â”€
+jinja2==3.1.4
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# â”€â”€â”€ Database â”€â”€â”€
+sqlalchemy==2.0.36
+alembic==1.14.0
+asyncpg==0.30.0
+psycopg2-binary==2.9.10
+aiosqlite==0.20.0
+
+# â”€â”€â”€ Cache (optional) â”€â”€â”€
+redis==5.2.1
+
+# â”€â”€â”€ JWT â”€â”€â”€
+python-jose[cryptography]==3.3.0
+
+# â”€â”€â”€ HTTP / API integrations â”€â”€â”€
+httpx==0.28.1
+
+# â”€â”€â”€ Anthropic Claude â”€â”€â”€
+anthropic==0.40.0
+
+# â”€â”€â”€ Image processing â”€â”€â”€
+Pillow==11.0.0
+
+# â”€â”€â”€ PDF generation â”€â”€â”€
+weasyprint==63.1
+
+# 
+#  TRAINING SYSTEM Â· HEAVY ML STACK
+# 
+
+APScheduler==3.10.4
+
+numpy>=2.2.6,<2.3
+pandas>=2.2.0,<3.0,<3.0
+polars>=1.17.0
+scipy>=1.13.0
+pyarrow>=18.0.0
+
+scikit-learn>=1.5.0
+xgboost>=2.1.0
+lightgbm>=4.5.0
+catboost>=1.2.7
+optuna>=4.1.0
+joblib>=1.4.2
+
+torch>=2.5.0
+transformers>=4.46.0
+sentence-transformers>=3.3.0
+accelerate>=1.1.0
+
+chromadb>=0.5.20
+
+matplotlib>=3.9.2
+mplfinance>=0.12.10b0
+plotly>=5.24.0
+pandas-ta>=0.3.14b0
+vectorbt>=0.26.0
+
+mlflow>=2.18.0
+
+

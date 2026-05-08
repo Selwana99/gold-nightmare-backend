@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول · {{ settings.APP_NAME }}</title>
+
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;">
+  <div class="card-elevated p-6" style="max-width:420px;width:100%;">
+    <div class="text-center mb-5">
+      <div style="font-size:48px;">🌙</div>
+      <h1 class="display-font text-gradient-gold" style="font-size:28px;margin-top:8px;">Gold Nightmare</h1>
+      <p class="muted" style="font-size:13px;letter-spacing:0.1em;">PERSONAL · OWNER ACCESS</p>
+      <div class="ornament" style="margin:12px auto;"></div>
+    </div>
+
+    <form id="login-form">
+      <label class="input-label" for="passcode">كلمة المرور</label>
+      <input
+        id="passcode"
+        type="password"
+        class="input"
+        placeholder="••••••••••••"
+        autocomplete="current-password"
+        required
+        style="font-family:monospace;letter-spacing:0.2em;"
+        autofocus
+      >
+      <button type="submit" class="btn-gold mt-4" style="width:100%;">
+        🔓 تسجيل الدخول
+      </button>
+      <p id="error-msg" class="error-msg mt-3" style="display:none;"></p>
+    </form>
+  </div>
+
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pw = document.getElementById('passcode').value;
+      const errEl = document.getElementById('error-msg');
+      errEl.style.display = 'none';
+      try {
+        await Auth.login(pw);
+        // Auth.login already redirects on success
+      } catch (e) {
+        errEl.textContent = '✗ ' + e.message;
+        errEl.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
