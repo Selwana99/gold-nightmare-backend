@@ -57,6 +57,7 @@ async def init_db() -> None:
     """Create tables if they don't exist (used outside Alembic)."""
     from app.models import analysis, audit_log, share_link  # noqa
     from app.models import analysis_outcome, feedback, backtest_run, few_shot_example  # noqa
+    from app.models import learned_insight, subscriber  # noqa
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
