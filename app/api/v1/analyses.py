@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_owner
+from app.api.deps import require_owner, require_app_access
 from app.config import settings
 from app.core.analyzer import AnalyzerError
 from app.db.base import get_db
@@ -28,27 +28,25 @@ router = APIRouter(prefix="/analyses", tags=["analyses"])
 
 @router.post("", response_model=AnalysisResponse, status_code=201)
 async def create_analysis(
-    _: Annotated[str, Depends(require_owner)],
+    _: Annotated[dict, Depends(require_app_access)],
     db: Annotated[AsyncSession, Depends(get_db)],
     images: List[UploadFile] = File(..., description="1-4 chart images"),
     extra_context: Optional[str] = Form(None, max_length=1000),
     model_override: Optional[str] = Form(None),
 ):
-    """Submit chart image(s) and get a structured analysis."""
     if not images:
-        raise HTTPException(400, "لم يتم رفع صور")
+        raise HTTPException(400, "No images uploaded")
     if len(images) > settings.MAX_IMAGES_PER_ANALYSIS:
-        raise HTTPException(400, f"عدد الصور الأقصى {settings.MAX_IMAGES_PER_ANALYSIS}")
+        raise HTTPException(400, f"Max images: {settings.MAX_IMAGES_PER_ANALYSIS}")
 
-    # Read all bytes
     images_bytes = []
     max_bytes = settings.MAX_UPLOAD_MB * 1024 * 1024
     for img in images:
         content = await img.read()
         if len(content) > max_bytes:
-            raise HTTPException(413, f"الصورة كبيرة جداً (>{settings.MAX_UPLOAD_MB}MB)")
+            raise HTTPException(413, f"Image too large (>{settings.MAX_UPLOAD_MB}MB)")
         if not content:
-            raise HTTPException(400, "ملف فارغ")
+            raise HTTPException(400, "Empty file")
         images_bytes.append(content)
 
     try:
@@ -59,14 +57,14 @@ async def create_analysis(
         raise HTTPException(400, str(e))
     except Exception as e:
         logger.exception("Analysis failed")
-        raise HTTPException(500, f"خطأ داخلي: {e}")
+        raise HTTPException(500, f"Internal error: {e}")
 
     return AnalysisResponse.model_validate(analysis)
 
 
 @router.get("", response_model=AnalysisListResponse)
 async def list_my_analyses(
-    _: Annotated[str, Depends(require_owner)],
+    _: Annotated[dict, Depends(require_app_access)],
     db: Annotated[AsyncSession, Depends(get_db)],
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -89,12 +87,12 @@ async def list_my_analyses(
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
 async def get_one(
     analysis_id: str,
-    _: Annotated[str, Depends(require_owner)],
+    _: Annotated[dict, Depends(require_app_access)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     a = await get_analysis(db, analysis_id)
     if not a:
-        raise HTTPException(404, "التحليل غير موجود")
+        raise HTTPException(404, "Analysis not found")
     return AnalysisResponse.model_validate(a)
 
 
@@ -106,11 +104,9 @@ async def delete_one(
 ):
     ok = await delete_analysis(db, analysis_id)
     if not ok:
-        raise HTTPException(404, "التحليل غير موجود")
+        raise HTTPException(404, "Analysis not found")
     return None
 
-
-# ─── Share links ───
 
 @router.post("/{analysis_id}/share", response_model=ShareLinkPublic)
 async def create_share_link(
@@ -123,7 +119,7 @@ async def create_share_link(
         raise HTTPException(403, "Share links are disabled")
     a = await get_analysis(db, analysis_id)
     if not a:
-        raise HTTPException(404, "التحليل غير موجود")
+        raise HTTPException(404, "Analysis not found")
 
     expires_at = datetime.utcnow() + timedelta(days=expires_in_days) if expires_in_days else None
 
@@ -137,8 +133,6 @@ async def create_share_link(
     )
 
 
-# ─── PDF export ───
-
 @router.get("/{analysis_id}/pdf")
 async def download_pdf(
     analysis_id: str,
@@ -149,7 +143,7 @@ async def download_pdf(
         raise HTTPException(403, "PDF export is disabled")
     a = await get_analysis(db, analysis_id)
     if not a:
-        raise HTTPException(404, "التحليل غير موجود")
+        raise HTTPException(404, "Analysis not found")
 
     try:
         from app.services.pdf_service import build_pdf
@@ -158,7 +152,7 @@ async def download_pdf(
         raise HTTPException(500, str(e))
     except Exception as e:
         logger.exception("PDF generation failed")
-        raise HTTPException(500, f"خطأ في توليد PDF: {e}")
+        raise HTTPException(500, f"PDF generation error: {e}")
 
     import io
     return StreamingResponse(
