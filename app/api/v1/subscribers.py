@@ -1,14 +1,16 @@
-"""Subscriber management endpoints."""
+"""Subscriber management and app session endpoints."""
 
 from datetime import datetime
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_owner
+from app.config import settings
+from app.core.security import create_subscriber_token
 from app.db.base import get_db
 from app.models.subscriber import Subscriber
 
@@ -35,6 +37,18 @@ class SubscriberUpdate(BaseModel):
     reset_device: bool = False
 
 
+class SubscriberSessionRequest(BaseModel):
+    telegram_username: str = Field(..., min_length=2, max_length=64)
+    device_id: str = Field(..., min_length=8, max_length=128)
+
+
+class SubscriberSessionResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in_minutes: int
+    telegram_username: str
+
+
 class SubscriberOut(BaseModel):
     id: str
     telegram_username: str
@@ -46,6 +60,46 @@ class SubscriberOut(BaseModel):
     last_seen_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+@router.post("/session", response_model=SubscriberSessionResponse)
+async def create_subscriber_session(
+    body: SubscriberSessionRequest,
+    response: Response,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    username = normalize_username(body.telegram_username)
+    device_id = body.device_id.strip()
+
+    sub = await db.scalar(select(Subscriber).where(Subscriber.telegram_username == username))
+    if not sub or not sub.is_active:
+        raise HTTPException(403, "Subscriber is not active")
+
+    if sub.device_id and sub.device_id != device_id:
+        raise HTTPException(403, "Subscriber is already linked to another device")
+
+    if not sub.device_id:
+        sub.device_id = device_id
+    sub.last_seen_at = datetime.utcnow()
+    await db.flush()
+
+    token = create_subscriber_token(username=username, device_id=device_id)
+    is_secure = request.url.scheme == "https" or settings.APP_ENV == "production"
+    response.set_cookie(
+        key="gn_session",
+        value=token,
+        httponly=True,
+        secure=is_secure,
+        samesite="lax",
+        max_age=settings.JWT_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    return SubscriberSessionResponse(
+        access_token=token,
+        expires_in_minutes=settings.JWT_EXPIRE_MINUTES,
+        telegram_username=username,
+    )
 
 
 @router.get("", response_model=list[SubscriberOut])
