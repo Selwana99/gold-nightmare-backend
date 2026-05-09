@@ -27,10 +27,9 @@ async def lifespan(app: FastAPI):
     """Startup/shutdown."""
     logger.info("Starting %s v%s [%s]", settings.APP_NAME, settings.APP_VERSION, settings.APP_ENV)
 
-    # Create tables (skip if Alembic is in charge)
-    if "sqlite" in settings.DATABASE_URL.lower():
-        from app.db.base import init_db
-        await init_db()
+    # Create missing tables on startup. This keeps Render/Postgres simple for the personal app.
+    from app.db.base import init_db
+    await init_db()
 
     # Sentry
     if settings.SENTRY_DSN:
