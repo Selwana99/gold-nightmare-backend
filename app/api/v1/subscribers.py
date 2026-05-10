@@ -1,9 +1,9 @@
 """Subscriber management and app session endpoints."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from app.api.deps import require_owner
 from app.config import settings
 from app.core.security import create_subscriber_token
 from app.db.base import get_db
+from app.models.analysis_quota import AnalysisQuota
 from app.models.subscriber import Subscriber
 
 router = APIRouter(prefix="/subscribers", tags=["subscribers"])
@@ -62,6 +63,16 @@ class SubscriberOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SubscriberUsageOut(BaseModel):
+    telegram_username: str
+    is_active: bool
+    used_today: int
+    daily_limit: int = 5
+    remaining_today: int
+    device_linked: bool
+    last_seen_at: Optional[datetime]
+
+
 @router.post("/session", response_model=SubscriberSessionResponse)
 async def create_subscriber_session(
     body: SubscriberSessionRequest,
@@ -109,6 +120,32 @@ async def list_subscribers(
 ):
     result = await db.execute(select(Subscriber).order_by(Subscriber.created_at.desc()))
     return list(result.scalars().all())
+
+
+@router.get("/usage/daily", response_model=list[SubscriberUsageOut])
+async def list_daily_usage(
+    _: Annotated[str, Depends(require_owner)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    day: date = Query(default_factory=date.today),
+):
+    subs = list((await db.execute(select(Subscriber).order_by(Subscriber.telegram_username.asc()))).scalars().all())
+    quotas = list((await db.execute(select(AnalysisQuota).where(AnalysisQuota.quota_date == day))).scalars().all())
+    quota_by_user = {q.telegram_username: q.used_count for q in quotas}
+
+    items = []
+    for sub in subs:
+        used = int(quota_by_user.get(sub.telegram_username, 0) or 0)
+        limit = 5
+        items.append(SubscriberUsageOut(
+            telegram_username=sub.telegram_username,
+            is_active=sub.is_active,
+            used_today=used,
+            daily_limit=limit,
+            remaining_today=max(limit - used, 0),
+            device_linked=bool(sub.device_id),
+            last_seen_at=sub.last_seen_at,
+        ))
+    return items
 
 
 @router.post("", response_model=SubscriberOut, status_code=201)
