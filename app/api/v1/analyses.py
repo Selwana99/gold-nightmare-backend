@@ -2,7 +2,7 @@
 
 import logging
 from typing import Annotated, Optional, List
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, Response
 from fastapi.responses import StreamingResponse
@@ -14,6 +14,7 @@ from app.config import settings
 from app.core.analyzer import AnalyzerError
 from app.db.base import get_db
 from app.models.analysis import Analysis
+from app.models.analysis_quota import AnalysisQuota
 from app.models.share_link import ShareLink
 from app.schemas.analysis import (
     AnalysisResponse, AnalysisListResponse, AnalysisListItem, ShareLinkPublic,
@@ -24,16 +25,53 @@ from app.services.analysis_service import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analyses", tags=["analyses"])
+DAILY_SUBSCRIBER_ANALYSIS_LIMIT = 5
+
+
+async def _check_subscriber_quota(db: AsyncSession, access_payload: dict) -> AnalysisQuota | None:
+    if access_payload.get("role") != "subscriber":
+        return None
+
+    username = access_payload.get("telegram_username")
+    if not username:
+        raise HTTPException(401, "Invalid subscriber session")
+
+    today = date.today()
+    quota = await db.scalar(
+        select(AnalysisQuota).where(
+            AnalysisQuota.telegram_username == username,
+            AnalysisQuota.quota_date == today,
+        )
+    )
+
+    if quota is None:
+        quota = AnalysisQuota(
+            telegram_username=username,
+            quota_date=today,
+            used_count=0,
+        )
+        db.add(quota)
+        await db.flush()
+
+    if quota.used_count >= DAILY_SUBSCRIBER_ANALYSIS_LIMIT:
+        raise HTTPException(
+            429,
+            f"Daily analysis limit reached ({DAILY_SUBSCRIBER_ANALYSIS_LIMIT}/day)",
+        )
+
+    return quota
 
 
 @router.post("", response_model=AnalysisResponse, status_code=201)
 async def create_analysis(
-    _: Annotated[dict, Depends(require_app_access)],
+    access: Annotated[dict, Depends(require_app_access)],
     db: Annotated[AsyncSession, Depends(get_db)],
     images: List[UploadFile] = File(..., description="1-4 chart images"),
     extra_context: Optional[str] = Form(None, max_length=1000),
     model_override: Optional[str] = Form(None),
 ):
+    quota = await _check_subscriber_quota(db, access)
+
     if not images:
         raise HTTPException(400, "No images uploaded")
     if len(images) > settings.MAX_IMAGES_PER_ANALYSIS:
@@ -58,6 +96,11 @@ async def create_analysis(
     except Exception as e:
         logger.exception("Analysis failed")
         raise HTTPException(500, f"Internal error: {e}")
+
+    if quota is not None:
+        quota.used_count += 1
+        quota.updated_at = datetime.utcnow()
+        await db.flush()
 
     return AnalysisResponse.model_validate(analysis)
 
