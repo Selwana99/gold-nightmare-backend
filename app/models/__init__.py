@@ -9,9 +9,10 @@ from app.models.backtest_run import BacktestRun
 from app.models.few_shot_example import FewShotExample
 from app.models.learned_insight import LearnedInsight
 from app.models.subscriber import Subscriber
+from app.models.analysis_quota import AnalysisQuota
 
 __all__ = [
     "Analysis", "AuditLog", "ShareLink",
     "AnalysisOutcome", "Feedback", "BacktestRun", "FewShotExample",
-    "LearnedInsight", "Subscriber",
+    "LearnedInsight", "Subscriber", "AnalysisQuota",
 ]
