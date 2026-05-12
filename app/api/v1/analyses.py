@@ -14,6 +14,7 @@ from app.config import settings
 from app.core.analyzer import AnalyzerError
 from app.db.base import get_db
 from app.models.analysis import Analysis
+from app.models.analysis_credit import AnalysisCredit
 from app.models.analysis_quota import AnalysisQuota
 from app.models.share_link import ShareLink
 from app.schemas.analysis import (
@@ -28,13 +29,22 @@ router = APIRouter(prefix="/analyses", tags=["analyses"])
 DAILY_SUBSCRIBER_ANALYSIS_LIMIT = 5
 
 
-async def _check_subscriber_quota(db: AsyncSession, access_payload: dict) -> AnalysisQuota | None:
+async def _check_subscriber_quota(db: AsyncSession, access_payload: dict) -> tuple[AnalysisQuota | None, AnalysisCredit | None]:
     if access_payload.get("role") != "subscriber":
-        return None
+        return None, None
 
     username = access_payload.get("telegram_username")
     if not username:
         raise HTTPException(401, "Invalid subscriber session")
+
+    credit = await db.scalar(
+        select(AnalysisCredit).where(AnalysisCredit.telegram_username == username)
+    )
+    if credit is not None and credit.used_count >= credit.total_limit:
+        raise HTTPException(
+            429,
+            f"Analysis package finished ({credit.used_count}/{credit.total_limit}). Contact admin to renew.",
+        )
 
     today = date.today()
     quota = await db.scalar(
@@ -53,13 +63,14 @@ async def _check_subscriber_quota(db: AsyncSession, access_payload: dict) -> Ana
         db.add(quota)
         await db.flush()
 
-    if quota.used_count >= DAILY_SUBSCRIBER_ANALYSIS_LIMIT:
+    daily_limit = credit.total_limit if credit is not None else DAILY_SUBSCRIBER_ANALYSIS_LIMIT
+    if quota.used_count >= daily_limit:
         raise HTTPException(
             429,
-            f"Daily analysis limit reached ({DAILY_SUBSCRIBER_ANALYSIS_LIMIT}/day)",
+            f"Daily analysis limit reached ({daily_limit}/day)",
         )
 
-    return quota
+    return quota, credit
 
 
 @router.post("", response_model=AnalysisResponse, status_code=201)
@@ -70,7 +81,7 @@ async def create_analysis(
     extra_context: Optional[str] = Form(None, max_length=1000),
     model_override: Optional[str] = Form(None),
 ):
-    quota = await _check_subscriber_quota(db, access)
+    quota, credit = await _check_subscriber_quota(db, access)
 
     if not images:
         raise HTTPException(400, "No images uploaded")
@@ -100,7 +111,10 @@ async def create_analysis(
     if quota is not None:
         quota.used_count += 1
         quota.updated_at = datetime.utcnow()
-        await db.flush()
+    if credit is not None:
+        credit.used_count += 1
+        credit.updated_at = datetime.utcnow()
+    await db.flush()
 
     return AnalysisResponse.model_validate(analysis)
 
