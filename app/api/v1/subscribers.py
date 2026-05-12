@@ -12,6 +12,7 @@ from app.api.deps import require_owner
 from app.config import settings
 from app.core.security import create_subscriber_token
 from app.db.base import get_db
+from app.models.analysis_credit import AnalysisCredit
 from app.models.analysis_quota import AnalysisQuota
 from app.models.subscriber import Subscriber
 
@@ -36,6 +37,20 @@ class SubscriberUpdate(BaseModel):
     is_active: Optional[bool] = None
     notes: Optional[str] = None
     reset_device: bool = False
+
+
+class SubscriberCreditRequest(BaseModel):
+    telegram_username: str = Field(..., min_length=2, max_length=64)
+    total_limit: int = Field(..., ge=1, le=100000)
+    reset_used: bool = True
+
+
+class SubscriberCreditOut(BaseModel):
+    telegram_username: str
+    total_limit: int
+    used_count: int
+    remaining: int
+    is_active: bool
 
 
 class SubscriberSessionRequest(BaseModel):
@@ -69,6 +84,9 @@ class SubscriberUsageOut(BaseModel):
     used_today: int
     daily_limit: int = 5
     remaining_today: int
+    total_limit: Optional[int] = None
+    total_used: Optional[int] = None
+    total_remaining: Optional[int] = None
     device_linked: bool
     last_seen_at: Optional[datetime]
 
@@ -130,22 +148,71 @@ async def list_daily_usage(
 ):
     subs = list((await db.execute(select(Subscriber).order_by(Subscriber.telegram_username.asc()))).scalars().all())
     quotas = list((await db.execute(select(AnalysisQuota).where(AnalysisQuota.quota_date == day))).scalars().all())
+    credits = list((await db.execute(select(AnalysisCredit))).scalars().all())
     quota_by_user = {q.telegram_username: q.used_count for q in quotas}
+    credit_by_user = {c.telegram_username: c for c in credits}
 
     items = []
     for sub in subs:
         used = int(quota_by_user.get(sub.telegram_username, 0) or 0)
-        limit = 5
+        credit = credit_by_user.get(sub.telegram_username)
+        limit = credit.total_limit if credit else 5
+        total_used = credit.used_count if credit else None
+        total_limit = credit.total_limit if credit else None
+        total_remaining = max(credit.total_limit - credit.used_count, 0) if credit else None
         items.append(SubscriberUsageOut(
             telegram_username=sub.telegram_username,
             is_active=sub.is_active,
             used_today=used,
             daily_limit=limit,
             remaining_today=max(limit - used, 0),
+            total_limit=total_limit,
+            total_used=total_used,
+            total_remaining=total_remaining,
             device_linked=bool(sub.device_id),
             last_seen_at=sub.last_seen_at,
         ))
     return items
+
+
+@router.post("/credits", response_model=SubscriberCreditOut)
+async def set_subscriber_credits(
+    body: SubscriberCreditRequest,
+    _: Annotated[str, Depends(require_owner)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    username = normalize_username(body.telegram_username)
+
+    sub = await db.scalar(select(Subscriber).where(Subscriber.telegram_username == username))
+    if sub:
+        sub.is_active = True
+    else:
+        sub = Subscriber(telegram_username=username, notes="credit package", is_active=True)
+        db.add(sub)
+        await db.flush()
+
+    credit = await db.scalar(select(AnalysisCredit).where(AnalysisCredit.telegram_username == username))
+    if credit:
+        credit.total_limit = body.total_limit
+        if body.reset_used:
+            credit.used_count = 0
+        credit.updated_at = datetime.utcnow()
+    else:
+        credit = AnalysisCredit(
+            telegram_username=username,
+            total_limit=body.total_limit,
+            used_count=0,
+        )
+        db.add(credit)
+
+    await db.flush()
+    return SubscriberCreditOut(
+        telegram_username=username,
+        total_limit=credit.total_limit,
+        used_count=credit.used_count,
+        remaining=max(credit.total_limit - credit.used_count, 0),
+        is_active=sub.is_active,
+    )
 
 
 @router.post("", response_model=SubscriberOut, status_code=201)
