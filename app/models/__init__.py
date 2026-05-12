@@ -10,9 +10,10 @@ from app.models.few_shot_example import FewShotExample
 from app.models.learned_insight import LearnedInsight
 from app.models.subscriber import Subscriber
 from app.models.analysis_quota import AnalysisQuota
+from app.models.analysis_credit import AnalysisCredit
 
 __all__ = [
     "Analysis", "AuditLog", "ShareLink",
     "AnalysisOutcome", "Feedback", "BacktestRun", "FewShotExample",
-    "LearnedInsight", "Subscriber", "AnalysisQuota",
+    "LearnedInsight", "Subscriber", "AnalysisQuota", "AnalysisCredit",
 ]
