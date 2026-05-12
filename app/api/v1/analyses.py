@@ -73,6 +73,18 @@ async def _check_subscriber_quota(db: AsyncSession, access_payload: dict) -> tup
     return quota, credit
 
 
+async def _count_analysis_request(db: AsyncSession, quota: AnalysisQuota | None, credit: AnalysisCredit | None) -> None:
+    """Count any subscriber analysis request immediately, even if analysis later fails."""
+    if quota is not None:
+        quota.used_count += 1
+        quota.updated_at = datetime.utcnow()
+    if credit is not None:
+        credit.used_count += 1
+        credit.updated_at = datetime.utcnow()
+    if quota is not None or credit is not None:
+        await db.flush()
+
+
 @router.post("", response_model=AnalysisResponse, status_code=201)
 async def create_analysis(
     access: Annotated[dict, Depends(require_app_access)],
@@ -82,6 +94,7 @@ async def create_analysis(
     model_override: Optional[str] = Form(None),
 ):
     quota, credit = await _check_subscriber_quota(db, access)
+    await _count_analysis_request(db, quota, credit)
 
     if not images:
         raise HTTPException(400, "No images uploaded")
@@ -107,14 +120,6 @@ async def create_analysis(
     except Exception as e:
         logger.exception("Analysis failed")
         raise HTTPException(500, f"Internal error: {e}")
-
-    if quota is not None:
-        quota.used_count += 1
-        quota.updated_at = datetime.utcnow()
-    if credit is not None:
-        credit.used_count += 1
-        credit.updated_at = datetime.utcnow()
-    await db.flush()
 
     return AnalysisResponse.model_validate(analysis)
 
