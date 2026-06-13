@@ -78,19 +78,6 @@ class SubscriberOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class SubscriberUsageOut(BaseModel):
-    telegram_username: str
-    is_active: bool
-    used_today: int
-    daily_limit: int = 5
-    remaining_today: int
-    total_limit: Optional[int] = None
-    total_used: Optional[int] = None
-    total_remaining: Optional[int] = None
-    device_linked: bool
-    last_seen_at: Optional[datetime]
-
-
 @router.post("/session", response_model=SubscriberSessionResponse)
 async def create_subscriber_session(
     body: SubscriberSessionRequest,
@@ -140,38 +127,52 @@ async def list_subscribers(
     return list(result.scalars().all())
 
 
-@router.get("/usage/daily", response_model=list[SubscriberUsageOut])
+@router.get("/usage/daily")
 async def list_daily_usage(
     _: Annotated[str, Depends(require_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    day: date = Query(default_factory=date.today),
+    day: Optional[date] = Query(default=None),
 ):
-    subs = list((await db.execute(select(Subscriber).order_by(Subscriber.telegram_username.asc()))).scalars().all())
-    quotas = list((await db.execute(select(AnalysisQuota).where(AnalysisQuota.quota_date == day))).scalars().all())
+    if day is None:
+        day = date.today()
+
+    subs = list((await db.execute(
+        select(Subscriber).order_by(Subscriber.telegram_username.asc())
+    )).scalars().all())
+
+    quotas = list((await db.execute(
+        select(AnalysisQuota).where(AnalysisQuota.quota_date == day)
+    )).scalars().all())
+
     credits = list((await db.execute(select(AnalysisCredit))).scalars().all())
-    quota_by_user = {q.telegram_username: q.used_count for q in quotas}
-    credit_by_user = {c.telegram_username: c for c in credits}
+
+    quota_by_user = {str(q.telegram_username): int(q.used_count or 0) for q in quotas}
+    credit_by_user = {str(c.telegram_username): c for c in credits}
 
     items = []
     for sub in subs:
-        used = int(quota_by_user.get(sub.telegram_username, 0) or 0)
-        credit = credit_by_user.get(sub.telegram_username)
-        limit = credit.total_limit if credit else 5
-        total_used = credit.used_count if credit else None
-        total_limit = credit.total_limit if credit else None
-        total_remaining = max(credit.total_limit - credit.used_count, 0) if credit else None
-        items.append(SubscriberUsageOut(
-            telegram_username=sub.telegram_username,
-            is_active=sub.is_active,
-            used_today=used,
-            daily_limit=limit,
-            remaining_today=max(limit - used, 0),
-            total_limit=total_limit,
-            total_used=total_used,
-            total_remaining=total_remaining,
-            device_linked=bool(sub.device_id),
-            last_seen_at=sub.last_seen_at,
-        ))
+        username = str(sub.telegram_username)
+        used_today = int(quota_by_user.get(username, 0) or 0)
+        credit = credit_by_user.get(username)
+
+        total_limit = int(credit.total_limit) if credit else None
+        total_used = int(credit.used_count or 0) if credit else 0
+        total_remaining = max(total_limit - total_used, 0) if total_limit is not None else None
+        daily_limit = total_limit if total_limit is not None else 5
+
+        items.append({
+            "telegram_username": username,
+            "is_active": bool(sub.is_active),
+            "used_today": used_today,
+            "daily_limit": int(daily_limit),
+            "remaining_today": max(int(daily_limit) - used_today, 0),
+            "total_limit": total_limit,
+            "total_used": total_used,
+            "total_remaining": total_remaining,
+            "device_linked": bool(sub.device_id),
+            "last_seen_at": sub.last_seen_at.isoformat() if sub.last_seen_at else None,
+        })
+
     return items
 
 
