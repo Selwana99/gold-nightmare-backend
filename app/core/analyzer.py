@@ -21,9 +21,18 @@ from app.schemas.analysis import AnalysisResult
 logger = logging.getLogger(__name__)
 
 MAX_IMAGE_DIM = 1568  # Anthropic recommendation for vision
+STABLE_CLAUDE_MODEL = "claude-3-5-sonnet-20241022"
+
+MODEL_ALIASES = {
+    "claude-sonnet-4-20250514": STABLE_CLAUDE_MODEL,
+    "claude-opus-4-20250514": STABLE_CLAUDE_MODEL,
+    "claude-sonnet-4-6": STABLE_CLAUDE_MODEL,
+    "claude-opus-4-7": STABLE_CLAUDE_MODEL,
+}
 
 # Token cost per 1M tokens (USD) — adjust if pricing changes
 MODEL_PRICING = {
+    "claude-3-5-sonnet-20241022": {"input": 3.00, "output": 15.00},
     "claude-opus-4-7":      {"input": 15.00, "output": 75.00},
     "claude-opus-4-6":      {"input": 15.00, "output": 75.00},
     "claude-sonnet-4-6":    {"input": 3.00,  "output": 15.00},
@@ -31,6 +40,14 @@ MODEL_PRICING = {
 }
 
 _client: Optional[Anthropic] = None
+
+
+def _normalize_model(model: Optional[str]) -> str:
+    model_name = (model or STABLE_CLAUDE_MODEL).strip()
+    normalized = MODEL_ALIASES.get(model_name, model_name)
+    if normalized != model_name:
+        logger.warning("Unsupported Claude model %s replaced with %s", model_name, normalized)
+    return normalized
 
 
 def get_client() -> Anthropic:
@@ -93,8 +110,8 @@ def _strip_json_fences(text: str) -> str:
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     pricing = MODEL_PRICING.get(model)
     if not pricing:
-        # Default to Sonnet pricing if unknown
-        pricing = MODEL_PRICING["claude-sonnet-4-6"]
+        # Default to stable Sonnet pricing if unknown
+        pricing = MODEL_PRICING[STABLE_CLAUDE_MODEL]
     return (input_tokens * pricing["input"] + output_tokens * pricing["output"]) / 1_000_000
 
 
@@ -103,7 +120,7 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 def analyze_single_chart(
     image_bytes: bytes,
     extra_context: Optional[str] = None,
-    model: Optional[str] = None,
+    model: Optional[str] = None
 ) -> dict:
     """Analyze ONE chart image."""
     image_b64, media_type, image_hash = prepare_image(image_bytes)
@@ -120,7 +137,7 @@ def analyze_single_chart(
 def analyze_mtf(
     images_bytes: List[bytes],
     extra_context: Optional[str] = None,
-    model: Optional[str] = None,
+    model: Optional[str] = None
 ) -> dict:
     """
     Analyze multiple chart images (multi-timeframe).
@@ -173,7 +190,7 @@ def _run_analysis(
         })
     user_content.append({"type": "text", "text": "\n".join(user_text_parts)})
 
-    chosen_model = model or settings.CLAUDE_MODEL
+    chosen_model = _normalize_model(model or settings.CLAUDE_MODEL)
     client = get_client()
     start = time.monotonic()
 
