@@ -21,21 +21,22 @@ from app.schemas.analysis import AnalysisResult
 logger = logging.getLogger(__name__)
 
 MAX_IMAGE_DIM = 1568  # Anthropic recommendation for vision
-STABLE_CLAUDE_MODEL = "claude-3-5-sonnet-20241022"
+STABLE_CLAUDE_MODEL = "claude-sonnet-4-6"
 
 MODEL_ALIASES = {
     "claude-sonnet-4-20250514": STABLE_CLAUDE_MODEL,
     "claude-opus-4-20250514": STABLE_CLAUDE_MODEL,
-    "claude-sonnet-4-6": STABLE_CLAUDE_MODEL,
-    "claude-opus-4-7": STABLE_CLAUDE_MODEL,
+    "claude-3-5-sonnet-20241022": STABLE_CLAUDE_MODEL,
 }
 
 # Token cost per 1M tokens (USD) — adjust if pricing changes
 MODEL_PRICING = {
-    "claude-3-5-sonnet-20241022": {"input": 3.00, "output": 15.00},
-    "claude-opus-4-7":      {"input": 15.00, "output": 75.00},
-    "claude-opus-4-6":      {"input": 15.00, "output": 75.00},
-    "claude-sonnet-4-6":    {"input": 3.00,  "output": 15.00},
+    "claude-fable-5": {"input": 3.00, "output": 15.00},
+    "claude-opus-4-8": {"input": 15.00, "output": 75.00},
+    "claude-opus-4-7": {"input": 15.00, "output": 75.00},
+    "claude-opus-4-6": {"input": 15.00, "output": 75.00},
+    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
+    "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
     "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00},
 }
 
